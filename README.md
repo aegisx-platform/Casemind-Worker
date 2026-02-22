@@ -385,14 +385,50 @@ Output: `src-tauri/target/release/bundle/msi/CaseMind Worker_0.1.0_x64_en-US.msi
 
 ## Performance
 
-| Metric | macOS (Wine) | Windows (native) |
-|--------|-------------|-------------------|
-| Processing time (single) | ~10s | ~1-2s |
-| Max concurrent | 4 (configurable) | 4 (configurable) |
-| Throughput (4 concurrent) | ~24 req/min | ~120-240 req/min |
-| **Daily capacity** | **~34,500** | **~170,000-345,000** |
+### Load Test Results
 
-> Wine startup adds ~8s overhead per invocation on macOS. On Windows, exe runs natively with no overhead.
+Tested with `node loadtest-mqtt.mjs` (included in repo).
+
+**macOS (via Wine) — single worker:**
+
+| max_concurrent | Success Rate | DRG Accuracy | Throughput | Daily Capacity |
+|---|---|---|---|---|
+| **1 (default)** | 100% | **100%** | 0.13/sec | **~11,232/day** |
+| 2 | 100% | ~85% valid DRG | 0.43/sec | ~37,152/day |
+| 4 | 96% | ~50% valid DRG | 1.38/sec | ~119,231/day* |
+
+> \*Higher concurrency on Wine produces empty DRG results due to Visual FoxPro process conflicts. Default `max_concurrent` is 1 on macOS for reliability.
+
+**Windows (native) — expected:**
+
+| max_concurrent | Throughput | Daily Capacity |
+|---|---|---|
+| 1 | ~0.7/sec | ~60,000/day |
+| **4 (default)** | **~2.8/sec** | **~240,000/day** |
+| 8 | ~5.6/sec | ~480,000/day |
+
+**Scaling with multiple workers:**
+
+| Workers | Platform | Daily Capacity |
+|---|---|---|
+| 1 | Windows | ~240,000 |
+| 3 | Windows | ~720,000 |
+| 5 | Windows | ~1,200,000 |
+
+> Wine adds ~8s startup overhead per invocation on macOS. On Windows, exe runs natively in ~1-2s with no overhead. Deploy multiple workers for higher throughput.
+
+### Running the Load Test
+
+```bash
+# Default: 20 tasks, concurrency 4
+node loadtest-mqtt.mjs
+
+# Custom: 100 tasks, concurrency 10
+node loadtest-mqtt.mjs --total 100 --concurrency 10
+
+# Batch mode: 5 cases per MQTT message
+node loadtest-mqtt.mjs --total 50 --batch 5
+```
 
 ## Project Structure
 

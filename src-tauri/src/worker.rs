@@ -144,87 +144,101 @@ impl Worker {
                     continue;
                 }
 
-                let start = Instant::now();
-                let result = process_task(&exe_runner, &task, &worker_id).await;
-                let elapsed_ms = start.elapsed().as_millis() as u64;
+                // Spawn each task concurrently — ExeRunner's semaphore controls max parallelism
+                let exe_runner = exe_runner.clone();
+                let mqtt_handle = mqtt_handle.clone();
+                let tasks_completed = tasks_completed.clone();
+                let tasks_failed = tasks_failed.clone();
+                let total_processing_ms = total_processing_ms.clone();
+                let task_log = task_log.clone();
+                let status_tx = status_tx.clone();
+                let worker_id = worker_id.clone();
+                let connected = connected.clone();
+                let paused = paused.clone();
 
-                match result {
-                    Ok(drg_result) => {
-                        // Publish result
-                        if let Some(h) = mqtt_handle.lock().await.as_ref() {
-                            if let Err(e) = h.publish_result(&drg_result).await {
-                                log::error!("Failed to publish result: {}", e);
+                tokio::spawn(async move {
+                    let start = Instant::now();
+                    let result = process_task(&exe_runner, &task, &worker_id).await;
+                    let elapsed_ms = start.elapsed().as_millis() as u64;
+
+                    match result {
+                        Ok(drg_result) => {
+                            // Publish result
+                            if let Some(h) = mqtt_handle.lock().await.as_ref() {
+                                if let Err(e) = h.publish_result(&drg_result).await {
+                                    log::error!("Failed to publish result: {}", e);
+                                }
+                            }
+
+                            tasks_completed.fetch_add(1, Ordering::SeqCst);
+                            total_processing_ms.fetch_add(elapsed_ms, Ordering::SeqCst);
+
+                            // Add to log with request/response data
+                            let entry = TaskLogEntry {
+                                request_id: task.request_id.clone(),
+                                case_count: task.cases.len(),
+                                drg_codes: drg_result
+                                    .cases
+                                    .iter()
+                                    .map(|c| c.drg.clone())
+                                    .collect(),
+                                processing_ms: elapsed_ms,
+                                status: "success".to_string(),
+                                completed_at: chrono::Utc::now().to_rfc3339(),
+                                request_data: serde_json::to_value(&task).ok(),
+                                response_data: serde_json::to_value(&drg_result).ok(),
+                            };
+                            let mut log = task_log.lock().await;
+                            log.insert(0, entry);
+                            if log.len() > 50 {
+                                log.truncate(50);
                             }
                         }
+                        Err(e) => {
+                            log::error!("Task {} failed: {}", task.request_id, e);
+                            tasks_failed.fetch_add(1, Ordering::SeqCst);
 
-                        tasks_completed.fetch_add(1, Ordering::SeqCst);
-                        total_processing_ms.fetch_add(elapsed_ms, Ordering::SeqCst);
-
-                        // Add to log with request/response data
-                        let entry = TaskLogEntry {
-                            request_id: task.request_id.clone(),
-                            case_count: task.cases.len(),
-                            drg_codes: drg_result
-                                .cases
-                                .iter()
-                                .map(|c| c.drg.clone())
-                                .collect(),
-                            processing_ms: elapsed_ms,
-                            status: "success".to_string(),
-                            completed_at: chrono::Utc::now().to_rfc3339(),
-                            request_data: serde_json::to_value(&task).ok(),
-                            response_data: serde_json::to_value(&drg_result).ok(),
-                        };
-                        let mut log = task_log.lock().await;
-                        log.insert(0, entry);
-                        if log.len() > 50 {
-                            log.truncate(50);
+                            let entry = TaskLogEntry {
+                                request_id: task.request_id.clone(),
+                                case_count: task.cases.len(),
+                                drg_codes: vec![],
+                                processing_ms: elapsed_ms,
+                                status: format!("error: {}", e),
+                                completed_at: chrono::Utc::now().to_rfc3339(),
+                                request_data: serde_json::to_value(&task).ok(),
+                                response_data: None,
+                            };
+                            let mut log = task_log.lock().await;
+                            log.insert(0, entry);
+                            if log.len() > 50 {
+                                log.truncate(50);
+                            }
                         }
                     }
-                    Err(e) => {
-                        log::error!("Task {} failed: {}", task.request_id, e);
-                        tasks_failed.fetch_add(1, Ordering::SeqCst);
 
-                        let entry = TaskLogEntry {
-                            request_id: task.request_id.clone(),
-                            case_count: task.cases.len(),
-                            drg_codes: vec![],
-                            processing_ms: elapsed_ms,
-                            status: format!("error: {}", e),
-                            completed_at: chrono::Utc::now().to_rfc3339(),
-                            request_data: serde_json::to_value(&task).ok(),
-                            response_data: None,
-                        };
-                        let mut log = task_log.lock().await;
-                        log.insert(0, entry);
-                        if log.len() > 50 {
-                            log.truncate(50);
-                        }
-                    }
-                }
-
-                // Emit updated status to UI
-                let completed = tasks_completed.load(Ordering::SeqCst);
-                let failed = tasks_failed.load(Ordering::SeqCst);
-                let total_ms = total_processing_ms.load(Ordering::SeqCst);
-                let _ = status_tx
-                    .send(WorkerStatus {
-                        connected: connected.load(Ordering::SeqCst),
-                        paused: paused.load(Ordering::SeqCst),
-                        tasks_completed: completed,
-                        tasks_failed: failed,
-                        avg_processing_ms: if completed > 0 {
-                            total_ms as f64 / completed as f64
-                        } else {
-                            0.0
-                        },
-                        current_queue: 0,
-                        exe_available: exe_runner.is_available(),
-                        broker_url: String::new(),
-                        worker_id: worker_id.clone(),
-                        uptime_secs: 0,
-                    })
-                    .await;
+                    // Emit updated status to UI
+                    let completed = tasks_completed.load(Ordering::SeqCst);
+                    let failed = tasks_failed.load(Ordering::SeqCst);
+                    let total_ms = total_processing_ms.load(Ordering::SeqCst);
+                    let _ = status_tx
+                        .send(WorkerStatus {
+                            connected: connected.load(Ordering::SeqCst),
+                            paused: paused.load(Ordering::SeqCst),
+                            tasks_completed: completed,
+                            tasks_failed: failed,
+                            avg_processing_ms: if completed > 0 {
+                                total_ms as f64 / completed as f64
+                            } else {
+                                0.0
+                            },
+                            current_queue: 0,
+                            exe_available: exe_runner.is_available(),
+                            broker_url: String::new(),
+                            worker_id: worker_id.clone(),
+                            uptime_secs: 0,
+                        })
+                        .await;
+                });
             }
         });
 

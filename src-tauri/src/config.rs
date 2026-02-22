@@ -2,7 +2,12 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 const DEFAULT_BROKER_URL: &str = "mqtt://localhost:1883";
+// On macOS/Linux via Wine, VFP can only reliably handle 1 concurrent instance.
+// On Windows (native), 4+ concurrent processes work fine.
+#[cfg(target_os = "windows")]
 const DEFAULT_MAX_CONCURRENT: usize = 4;
+#[cfg(not(target_os = "windows"))]
+const DEFAULT_MAX_CONCURRENT: usize = 1;
 const DEFAULT_TDS_VERSION: &str = "TDS6307";
 const DEFAULT_DOWNLOAD_URL: &str =
     "https://www.tcmc.or.th/_content_images/download/fileupload/S0021.zip";

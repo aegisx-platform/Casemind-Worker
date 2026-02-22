@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#818cf8"/>
+      <stop offset="100%" style="stop-color:#6366f1"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect x="16" y="16" width="480" height="480" rx="96" fill="url(#bg)"/>
+
+  <!-- Brain outline (left hemisphere) -->
+  <path d="M200 160 C160 160, 130 190, 130 230 C130 250, 140 265, 150 275 C140 285, 135 300, 140 320 C145 340, 165 355, 190 360 C190 370, 195 380, 210 385 L210 310 C200 305, 190 295, 190 280 C190 265, 200 255, 210 250 L210 210 C200 205, 190 195, 190 180 C195 170, 200 165, 210 160 Z"
+        fill="rgba(255,255,255,0.9)" stroke="none"/>
+
+  <!-- Brain outline (right hemisphere) -->
+  <path d="M310 160 C350 160, 380 190, 380 230 C380 250, 370 265, 360 275 C370 285, 375 300, 370 320 C365 340, 345 355, 320 360 C320 370, 315 380, 300 385 L300 310 C310 305, 320 295, 320 280 C320 265, 310 255, 300 250 L300 210 C310 205, 320 195, 320 180 C315 170, 310 165, 300 160 Z"
+        fill="rgba(255,255,255,0.9)" stroke="none"/>
+
+  <!-- Brain center connection -->
+  <rect x="210" y="160" width="90" height="225" rx="8" fill="rgba(255,255,255,0.15)"/>
+
+  <!-- Neural connections / circuit lines -->
+  <circle cx="235" cy="200" r="8" fill="rgba(255,255,255,0.7)"/>
+  <circle cx="275" cy="200" r="8" fill="rgba(255,255,255,0.7)"/>
+  <circle cx="255" cy="240" r="8" fill="rgba(255,255,255,0.7)"/>
+  <circle cx="235" cy="280" r="8" fill="rgba(255,255,255,0.7)"/>
+  <circle cx="275" cy="280" r="8" fill="rgba(255,255,255,0.7)"/>
+  <circle cx="255" cy="320" r="8" fill="rgba(255,255,255,0.7)"/>
+
+  <line x1="235" y1="200" x2="275" y2="200" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+  <line x1="235" y1="200" x2="255" y2="240" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+  <line x1="275" y1="200" x2="255" y2="240" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+  <line x1="255" y1="240" x2="235" y2="280" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+  <line x1="255" y1="240" x2="275" y2="280" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+  <line x1="235" y1="280" x2="275" y2="280" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+  <line x1="235" y1="280" x2="255" y2="320" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+  <line x1="275" y1="280" x2="255" y2="320" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+
+  <!-- Gear/Worker icon (bottom right) -->
+  <g transform="translate(340, 340)">
+    <circle cx="40" cy="40" r="32" fill="rgba(0,0,0,0.3)"/>
+    <path d="M40 12 L44 24 L56 24 L46 32 L50 44 L40 36 L30 44 L34 32 L24 24 L36 24 Z"
+          fill="rgba(255,255,255,0.9)" transform="scale(1.3) translate(-9,-9)"/>
+    <circle cx="40" cy="40" r="12" fill="url(#glow)"/>
+    <circle cx="40" cy="40" r="6" fill="rgba(255,255,255,0.8)"/>
+  </g>
+
+  <!-- Medical cross (small, top-left accent) -->
+  <g transform="translate(100, 110)">
+    <rect x="-3" y="-10" width="6" height="20" rx="2" fill="rgba(255,255,255,0.5)"/>
+    <rect x="-10" y="-3" width="20" height="6" rx="2" fill="rgba(255,255,255,0.5)"/>
+  </g>
+</svg>
