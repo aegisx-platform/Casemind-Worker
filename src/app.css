@@ -1,0 +1,137 @@
+:root {
+  --bg-primary: #0f1117;
+  --bg-secondary: #1a1d27;
+  --bg-card: #1e2130;
+  --bg-input: #252838;
+  --border: #2d3148;
+  --text-primary: #e4e6f0;
+  --text-secondary: #8b8fa3;
+  --text-muted: #5c6078;
+  --accent: #6366f1;
+  --accent-hover: #7c7ff7;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --info: #3b82f6;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  overflow: hidden;
+  height: 100vh;
+}
+
+#app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.primary {
+  background: var(--accent);
+  color: white;
+}
+button.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+button.secondary {
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+button.secondary:hover:not(:disabled) {
+  background: var(--border);
+}
+
+button.danger {
+  background: var(--error);
+  color: white;
+}
+button.danger:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+input, select {
+  font-family: inherit;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+input:focus, select:focus {
+  border-color: var(--accent);
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.badge.success {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--success);
+}
+
+.badge.warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--warning);
+}
+
+.badge.error {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--error);
+}
+
+.badge.info {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--info);
+}
+
+.badge.neutral {
+  background: rgba(139, 143, 163, 0.15);
+  color: var(--text-secondary);
+}
