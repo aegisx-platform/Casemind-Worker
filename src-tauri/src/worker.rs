@@ -72,12 +72,10 @@ impl Worker {
     /// Start the worker: connect to MQTT and begin processing tasks.
     pub async fn start(&self) -> Result<(), String> {
         let config = self.config.lock().await;
-        let broker_url = config.broker_url.clone();
         let client_id = config.client_id.clone();
         let version = config.version.clone();
+        let (handle, mut task_rx) = mqtt::connect(&config).await?;
         drop(config);
-
-        let (handle, mut task_rx) = mqtt::connect(&broker_url, &client_id).await?;
 
         // Register with broker
         handle.register(&version).await?;
@@ -286,7 +284,7 @@ impl Worker {
             },
             current_queue: 0,
             exe_available: self.exe_runner.is_available(),
-            broker_url: config.broker_url.clone(),
+            broker_url: config.broker_display_url(),
             worker_id: config.client_id.clone(),
             uptime_secs: self.start_time.elapsed().as_secs(),
         }

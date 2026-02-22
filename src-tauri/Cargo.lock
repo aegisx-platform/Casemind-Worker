@@ -3285,11 +3285,13 @@ dependencies = [
  "flume",
  "futures-util",
  "log",
+ "native-tls",
  "rustls-native-certs",
  "rustls-pemfile",
  "rustls-webpki 0.102.8",
  "thiserror 1.0.69",
  "tokio",
+ "tokio-native-tls",
  "tokio-rustls 0.25.0",
 ]
 

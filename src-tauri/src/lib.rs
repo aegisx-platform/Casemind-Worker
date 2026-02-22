@@ -87,7 +87,7 @@ async fn get_status(state: State<'_, AppState>) -> Result<WorkerStatus, String> 
             avg_processing_ms: 0.0,
             current_queue: 0,
             exe_available: config.has_valid_exe(),
-            broker_url: config.broker_url.clone(),
+            broker_url: config.broker_display_url(),
             worker_id: config.client_id.clone(),
             uptime_secs: 0,
         })

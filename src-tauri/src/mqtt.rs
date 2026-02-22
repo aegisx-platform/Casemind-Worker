@@ -1,7 +1,9 @@
-use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
+use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS, Transport};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tokio::sync::mpsc;
+
+use crate::config::WorkerConfig;
 
 /// MQTT topics
 // Note: $share/group/ prefix requires MQTT v5; use plain topic for v3.1.1 compatibility
@@ -123,25 +125,37 @@ impl MqttHandle {
     }
 }
 
-/// Connect to the MQTT broker and return a handle + task receiver.
+/// Connect to the MQTT broker using WorkerConfig and return a handle + task receiver.
 pub async fn connect(
-    broker_url: &str,
-    client_id: &str,
+    config: &WorkerConfig,
 ) -> Result<(MqttHandle, mpsc::Receiver<DrgTask>), String> {
-    // Parse broker URL: mqtt://host:port
-    let url = broker_url
-        .strip_prefix("mqtt://")
-        .unwrap_or(broker_url);
-    let parts: Vec<&str> = url.split(':').collect();
-    let host = parts.first().unwrap_or(&"localhost");
-    let port: u16 = parts
-        .get(1)
-        .and_then(|p| p.parse().ok())
-        .unwrap_or(1883);
-
-    let mut mqtt_options = MqttOptions::new(client_id, *host, port);
-    mqtt_options.set_keep_alive(Duration::from_secs(30));
+    let mut mqtt_options =
+        MqttOptions::new(&config.client_id, &config.broker_host, config.broker_port);
+    mqtt_options.set_keep_alive(Duration::from_secs(config.keep_alive_secs as u64));
     mqtt_options.set_clean_session(true);
+
+    // Authentication
+    if let (Some(user), Some(pass)) = (&config.mqtt_username, &config.mqtt_password) {
+        if !user.is_empty() {
+            mqtt_options.set_credentials(user, pass);
+        }
+    }
+
+    // TLS
+    if config.use_tls {
+        let transport = match &config.tls_ca_cert_path {
+            Some(ca_path) if !ca_path.is_empty() => {
+                let ca = std::fs::read(ca_path)
+                    .map_err(|e| format!("Failed to read CA certificate '{}': {}", ca_path, e))?;
+                Transport::tls(ca, None, None)
+            }
+            _ => {
+                // Use system default CA certificates
+                Transport::tls_with_default_config()
+            }
+        };
+        mqtt_options.set_transport(transport);
+    }
 
     let (client, mut eventloop) = AsyncClient::new(mqtt_options, 100);
 
@@ -185,7 +199,7 @@ pub async fn connect(
     Ok((
         MqttHandle {
             client,
-            client_id: client_id.to_string(),
+            client_id: config.client_id.clone(),
         },
         task_rx,
     ))

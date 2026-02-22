@@ -4,25 +4,37 @@
   import { open } from "@tauri-apps/plugin-dialog";
 
   type Config = {
-    broker_url: string;
+    broker_host: string;
+    broker_port: number;
     client_id: string;
     exe_base_path: string;
     max_concurrent: number;
     version: string;
     auto_start: boolean;
     download_url: string;
+    mqtt_username: string | null;
+    mqtt_password: string | null;
+    use_tls: boolean;
+    tls_ca_cert_path: string | null;
+    keep_alive_secs: number;
   };
 
   let { onSaved }: { onSaved: () => void } = $props();
 
   let config = $state<Config>({
-    broker_url: "mqtt://localhost:1883",
+    broker_host: "localhost",
+    broker_port: 1883,
     client_id: "",
     exe_base_path: "",
     max_concurrent: 4,
     version: "TDS6307",
     auto_start: false,
     download_url: "https://www.tcmc.or.th/download-tcmc",
+    mqtt_username: null,
+    mqtt_password: null,
+    use_tls: false,
+    tls_ca_cert_path: null,
+    keep_alive_secs: 30,
   });
 
   let exeStatus = $state<"checking" | "found" | "not_found" | "unknown">("unknown");
@@ -30,10 +42,15 @@
   let downloading = $state(false);
   let saved = $state(false);
   let downloadError = $state("");
+  let showAuth = $state(false);
+  let showSecurity = $state(false);
 
   async function loadConfig() {
     try {
       config = await invoke<Config>("get_config");
+      // Expand sections if they have values
+      showAuth = !!(config.mqtt_username || config.mqtt_password);
+      showSecurity = config.use_tls;
       await checkExePath();
     } catch (e) {
       console.error("Failed to load config:", e);
@@ -87,6 +104,24 @@
     }
   }
 
+  async function handleBrowseCaCert() {
+    try {
+      const selected = await open({
+        multiple: false,
+        title: "Select CA Certificate File",
+        filters: [
+          { name: "Certificates", extensions: ["pem", "crt", "cer", "der"] },
+          { name: "All Files", extensions: ["*"] },
+        ],
+      });
+      if (selected) {
+        config.tls_ca_cert_path = selected as string;
+      }
+    } catch (e) {
+      console.error("Browse CA cert failed:", e);
+    }
+  }
+
   async function handleDownload() {
     downloading = true;
     downloadError = "";
@@ -108,17 +143,30 @@
   <h2>Settings</h2>
 
   <div class="settings-grid">
-    <!-- MQTT Broker -->
+    <!-- MQTT Connection -->
     <div class="setting-group card">
-      <h3>MQTT Broker</h3>
-      <div class="field">
-        <label for="broker_url">Broker URL</label>
-        <input
-          id="broker_url"
-          type="text"
-          bind:value={config.broker_url}
-          placeholder="mqtt://broker-host:1883"
-        />
+      <h3>MQTT Connection</h3>
+      <div class="field-row">
+        <div class="field flex-grow">
+          <label for="broker_host">Host</label>
+          <input
+            id="broker_host"
+            type="text"
+            bind:value={config.broker_host}
+            placeholder="localhost"
+          />
+        </div>
+        <div class="field port-field">
+          <label for="broker_port">Port</label>
+          <input
+            id="broker_port"
+            type="number"
+            bind:value={config.broker_port}
+            min="1"
+            max="65535"
+            placeholder="1883"
+          />
+        </div>
       </div>
       <div class="field">
         <label for="client_id">Worker ID</label>
@@ -130,6 +178,77 @@
         />
         <span class="hint">Unique identifier for this worker instance</span>
       </div>
+    </div>
+
+    <!-- Authentication (collapsible) -->
+    <div class="setting-group card">
+      <button
+        class="section-toggle"
+        onclick={() => (showAuth = !showAuth)}
+      >
+        <h3>Authentication</h3>
+        <span class="toggle-icon">{showAuth ? "\u25B4" : "\u25BE"}</span>
+      </button>
+      {#if showAuth}
+        <div class="collapsible-content">
+          <div class="field">
+            <label for="mqtt_username">Username</label>
+            <input
+              id="mqtt_username"
+              type="text"
+              bind:value={config.mqtt_username}
+              placeholder="Optional"
+            />
+          </div>
+          <div class="field">
+            <label for="mqtt_password">Password</label>
+            <input
+              id="mqtt_password"
+              type="password"
+              bind:value={config.mqtt_password}
+              placeholder="Optional"
+            />
+          </div>
+          <span class="hint">Leave empty for anonymous connections</span>
+        </div>
+      {/if}
+    </div>
+
+    <!-- Security (collapsible) -->
+    <div class="setting-group card">
+      <button
+        class="section-toggle"
+        onclick={() => (showSecurity = !showSecurity)}
+      >
+        <h3>Security</h3>
+        <span class="toggle-icon">{showSecurity ? "\u25B4" : "\u25BE"}</span>
+      </button>
+      {#if showSecurity}
+        <div class="collapsible-content">
+          <div class="field checkbox-field">
+            <label>
+              <input type="checkbox" bind:checked={config.use_tls} />
+              Use TLS/SSL
+            </label>
+            <span class="hint">Encrypt connection to MQTT broker (default port: 8883)</span>
+          </div>
+          {#if config.use_tls}
+            <div class="field">
+              <label for="tls_ca_cert_path">CA Certificate (optional)</label>
+              <div class="path-row">
+                <input
+                  id="tls_ca_cert_path"
+                  type="text"
+                  bind:value={config.tls_ca_cert_path}
+                  placeholder="System default CA"
+                />
+                <button class="secondary" onclick={handleBrowseCaCert}>Browse...</button>
+              </div>
+              <span class="hint">Custom CA certificate for self-signed brokers. Leave empty to use system certificates.</span>
+            </div>
+          {/if}
+        </div>
+      {/if}
     </div>
 
     <!-- Exe Path -->
@@ -207,6 +326,17 @@
         />
         <span class="hint">Number of TGrp6305.exe instances to run in parallel</span>
       </div>
+      <div class="field">
+        <label for="keep_alive_secs">Keep-alive Interval (seconds)</label>
+        <input
+          id="keep_alive_secs"
+          type="number"
+          bind:value={config.keep_alive_secs}
+          min="5"
+          max="300"
+        />
+        <span class="hint">MQTT keep-alive ping interval</span>
+      </div>
       <div class="field checkbox-field">
         <label>
           <input type="checkbox" bind:checked={config.auto_start} />
@@ -265,8 +395,28 @@
   }
 
   .field input[type="text"],
-  .field input[type="number"] {
+  .field input[type="number"],
+  .field input[type="password"] {
     width: 100%;
+  }
+
+  .field-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .field-row .field {
+    margin-bottom: 0;
+  }
+
+  .flex-grow {
+    flex: 1;
+  }
+
+  .port-field {
+    width: 100px;
+    flex-shrink: 0;
   }
 
   .hint {
@@ -303,6 +453,30 @@
     margin-top: 6px;
     font-size: 12px;
     color: var(--error);
+  }
+
+  .section-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  .section-toggle h3 {
+    margin-bottom: 0;
+  }
+
+  .toggle-icon {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .collapsible-content {
+    margin-top: 12px;
   }
 
   .checkbox-field label {
