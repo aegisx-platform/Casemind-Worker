@@ -4,6 +4,15 @@ Tauri desktop application that acts as a distributed DRG (Diagnosis Related Grou
 
 **Stack:** Rust (Tauri 2) + Svelte 5 + MQTT (rumqttc) + Visual FoxPro DBF
 
+## Screenshots
+
+### Dashboard
+![Dashboard](docs/screenshots/dashboard.png)
+
+### Settings
+![Settings](docs/screenshots/settings.png)
+![Settings - Worker](docs/screenshots/settings-bottom.png)
+
 ## Architecture
 
 ```
