@@ -14,6 +14,11 @@ const DEFAULT_DOWNLOAD_URL: &str =
     "https://www.tcmc.or.th/_content_images/download/fileupload/S0021.zip";
 const DEFAULT_KEEP_ALIVE_SECS: u32 = 30;
 
+const DEFAULT_TOPIC_PENDING: &str = "tasks/drg/pending";
+const DEFAULT_TOPIC_RESULTS: &str = "tasks/drg/results";
+const DEFAULT_TOPIC_HEALTH: &str = "workers/health";
+const DEFAULT_TOPIC_REGISTER: &str = "workers/register";
+
 fn default_broker_host() -> String {
     DEFAULT_BROKER_HOST.to_string()
 }
@@ -22,6 +27,18 @@ fn default_broker_port() -> u16 {
 }
 fn default_keep_alive_secs() -> u32 {
     DEFAULT_KEEP_ALIVE_SECS
+}
+fn default_topic_pending() -> String {
+    DEFAULT_TOPIC_PENDING.to_string()
+}
+fn default_topic_results() -> String {
+    DEFAULT_TOPIC_RESULTS.to_string()
+}
+fn default_topic_health() -> String {
+    DEFAULT_TOPIC_HEALTH.to_string()
+}
+fn default_topic_register() -> String {
+    DEFAULT_TOPIC_REGISTER.to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -57,6 +74,16 @@ pub struct WorkerConfig {
     // Advanced
     #[serde(default = "default_keep_alive_secs")]
     pub keep_alive_secs: u32,
+
+    // MQTT Topics
+    #[serde(default = "default_topic_pending")]
+    pub topic_pending: String,
+    #[serde(default = "default_topic_results")]
+    pub topic_results: String,
+    #[serde(default = "default_topic_health")]
+    pub topic_health: String,
+    #[serde(default = "default_topic_register")]
+    pub topic_register: String,
 }
 
 impl Default for WorkerConfig {
@@ -76,6 +103,10 @@ impl Default for WorkerConfig {
             use_tls: false,
             tls_ca_cert_path: None,
             keep_alive_secs: DEFAULT_KEEP_ALIVE_SECS,
+            topic_pending: DEFAULT_TOPIC_PENDING.to_string(),
+            topic_results: DEFAULT_TOPIC_RESULTS.to_string(),
+            topic_health: DEFAULT_TOPIC_HEALTH.to_string(),
+            topic_register: DEFAULT_TOPIC_REGISTER.to_string(),
         }
     }
 }

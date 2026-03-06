@@ -4,6 +4,7 @@
   import WorkerStatus from "./lib/WorkerStatus.svelte";
   import TaskLog from "./lib/TaskLog.svelte";
   import Settings from "./lib/Settings.svelte";
+  import MqttTest from "./lib/MqttTest.svelte";
   import "./app.css";
 
   type Status = {
@@ -28,7 +29,7 @@
     completed_at: string;
   };
 
-  let activeTab = $state<"dashboard" | "settings">("dashboard");
+  let activeTab = $state<"dashboard" | "test" | "settings">("dashboard");
   let status = $state<Status>({
     connected: false,
     paused: false,
@@ -109,6 +110,13 @@
       </button>
       <button
         class="tab"
+        class:active={activeTab === "test"}
+        onclick={() => (activeTab = "test")}
+      >
+        Test
+      </button>
+      <button
+        class="tab"
         class:active={activeTab === "settings"}
         onclick={() => (activeTab = "settings")}
       >
@@ -144,6 +152,8 @@
         />
         <TaskLog entries={taskLog} />
       </div>
+    {:else if activeTab === "test"}
+      <MqttTest connected={status.connected} />
     {:else}
       <Settings onSaved={refreshStatus} />
     {/if}

@@ -300,6 +300,13 @@ impl Worker {
         Ok(())
     }
 
+    /// Publish a test task to the pending topic via the existing MQTT connection.
+    pub async fn publish_test_task(&self, task: &DrgTask) -> Result<(), String> {
+        let guard = self.mqtt_handle.lock().await;
+        let handle = guard.as_ref().ok_or("MQTT not connected")?;
+        handle.publish_task(task).await
+    }
+
     async fn emit_status(&self) {
         let status = self.get_status().await;
         let _ = self.status_tx.send(status).await;

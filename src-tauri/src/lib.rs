@@ -104,6 +104,32 @@ async fn get_task_log(state: State<'_, AppState>) -> Result<Vec<TaskLogEntry>, S
 }
 
 #[tauri::command]
+async fn send_test_task(
+    state: State<'_, AppState>,
+    cases: Vec<mqtt::DrgTaskCase>,
+) -> Result<String, String> {
+    let config = state.config.lock().await;
+    let request_id = format!("test-{}", uuid::Uuid::new_v4());
+    let version_id = config.version.clone();
+    drop(config);
+
+    let task = mqtt::DrgTask {
+        request_id: request_id.clone(),
+        version_id,
+        cases,
+        published_at: chrono::Utc::now().to_rfc3339(),
+    };
+
+    let worker_guard = state.worker.lock().await;
+    let worker = worker_guard
+        .as_ref()
+        .ok_or("Worker not connected. Please connect first.")?;
+    worker.publish_test_task(&task).await?;
+
+    Ok(request_id)
+}
+
+#[tauri::command]
 async fn check_exe_path(path: String) -> Result<bool, String> {
     let exe_path = std::path::PathBuf::from(&path).join("TGrp6305.exe");
     Ok(exe_path.exists())
@@ -327,6 +353,7 @@ pub fn run() {
             resume_worker,
             get_status,
             get_task_log,
+            send_test_task,
             check_exe_path,
             download_exe,
         ])

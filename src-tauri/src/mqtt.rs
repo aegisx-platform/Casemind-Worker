@@ -5,13 +5,6 @@ use tokio::sync::mpsc;
 
 use crate::config::WorkerConfig;
 
-/// MQTT topics
-// Note: $share/group/ prefix requires MQTT v5; use plain topic for v3.1.1 compatibility
-const TOPIC_PENDING: &str = "tasks/drg/pending";
-const TOPIC_RESULTS_PREFIX: &str = "tasks/drg/results/";
-const TOPIC_HEALTH_PREFIX: &str = "workers/health/";
-const TOPIC_REGISTER_PREFIX: &str = "workers/register/";
-
 /// Task message published by CaseMind API
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DrgTask {
@@ -68,22 +61,19 @@ pub struct WorkerHealth {
     pub timestamp: String,
 }
 
-/// MQTT connection manager
-pub struct MqttManager {
-    client: AsyncClient,
-    client_id: String,
-    task_rx: mpsc::Receiver<DrgTask>,
-}
-
 pub struct MqttHandle {
     client: AsyncClient,
     client_id: String,
+    topic_pending: String,
+    topic_results: String,
+    topic_health: String,
+    topic_register: String,
 }
 
 impl MqttHandle {
     /// Publish a DRG result to the results topic.
     pub async fn publish_result(&self, result: &DrgResult) -> Result<(), String> {
-        let topic = format!("{}{}", TOPIC_RESULTS_PREFIX, result.request_id);
+        let topic = format!("{}/{}", self.topic_results, result.request_id);
         let payload = serde_json::to_vec(result).map_err(|e| e.to_string())?;
         self.client
             .publish(&topic, QoS::AtLeastOnce, false, payload)
@@ -93,7 +83,7 @@ impl MqttHandle {
 
     /// Publish worker health heartbeat.
     pub async fn publish_health(&self, health: &WorkerHealth) -> Result<(), String> {
-        let topic = format!("{}{}", TOPIC_HEALTH_PREFIX, self.client_id);
+        let topic = format!("{}/{}", self.topic_health, self.client_id);
         let payload = serde_json::to_vec(health).map_err(|e| e.to_string())?;
         self.client
             .publish(&topic, QoS::AtMostOnce, true, payload)
@@ -103,7 +93,7 @@ impl MqttHandle {
 
     /// Publish worker registration (retained message).
     pub async fn register(&self, version: &str) -> Result<(), String> {
-        let topic = format!("{}{}", TOPIC_REGISTER_PREFIX, self.client_id);
+        let topic = format!("{}/{}", self.topic_register, self.client_id);
         let payload = serde_json::to_string(&serde_json::json!({
             "worker_id": self.client_id,
             "version": version,
@@ -114,6 +104,15 @@ impl MqttHandle {
             .publish(&topic, QoS::AtLeastOnce, true, payload.as_bytes())
             .await
             .map_err(|e| format!("Failed to register: {}", e))
+    }
+
+    /// Publish a DRG task to the pending topic (used for testing).
+    pub async fn publish_task(&self, task: &DrgTask) -> Result<(), String> {
+        let payload = serde_json::to_vec(task).map_err(|e| e.to_string())?;
+        self.client
+            .publish(&self.topic_pending, QoS::AtLeastOnce, false, payload)
+            .await
+            .map_err(|e| format!("Failed to publish test task: {}", e))
     }
 
     /// Disconnect gracefully.
@@ -159,20 +158,22 @@ pub async fn connect(
 
     let (client, mut eventloop) = AsyncClient::new(mqtt_options, 100);
 
-    // Subscribe to pending tasks (shared subscription)
+    // Subscribe to pending tasks
+    let topic_pending = config.topic_pending.clone();
     client
-        .subscribe(TOPIC_PENDING, QoS::AtLeastOnce)
+        .subscribe(&topic_pending, QoS::AtLeastOnce)
         .await
         .map_err(|e| format!("Failed to subscribe: {}", e))?;
 
     let (task_tx, task_rx) = mpsc::channel::<DrgTask>(100);
 
     // Spawn event loop handler
+    let pending_topic_filter = topic_pending.clone();
     tokio::spawn(async move {
         loop {
             match eventloop.poll().await {
                 Ok(Event::Incoming(Packet::Publish(publish))) => {
-                    if publish.topic.contains("tasks/drg/pending") {
+                    if publish.topic == pending_topic_filter {
                         match serde_json::from_slice::<DrgTask>(&publish.payload) {
                             Ok(task) => {
                                 log::info!("Received task: {}", task.request_id);
@@ -200,6 +201,10 @@ pub async fn connect(
         MqttHandle {
             client,
             client_id: config.client_id.clone(),
+            topic_pending,
+            topic_results: config.topic_results.clone(),
+            topic_health: config.topic_health.clone(),
+            topic_register: config.topic_register.clone(),
         },
         task_rx,
     ))

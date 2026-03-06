@@ -17,6 +17,10 @@
     use_tls: boolean;
     tls_ca_cert_path: string | null;
     keep_alive_secs: number;
+    topic_pending: string;
+    topic_results: string;
+    topic_health: string;
+    topic_register: string;
   };
 
   let { onSaved }: { onSaved: () => void } = $props();
@@ -35,6 +39,10 @@
     use_tls: false,
     tls_ca_cert_path: null,
     keep_alive_secs: 30,
+    topic_pending: "tasks/drg/pending",
+    topic_results: "tasks/drg/results",
+    topic_health: "workers/health",
+    topic_register: "workers/register",
   });
 
   let exeStatus = $state<"checking" | "found" | "not_found" | "unknown">("unknown");
@@ -44,6 +52,7 @@
   let downloadError = $state("");
   let showAuth = $state(false);
   let showSecurity = $state(false);
+  let showTopics = $state(false);
 
   async function loadConfig() {
     try {
@@ -247,6 +256,61 @@
               <span class="hint">Custom CA certificate for self-signed brokers. Leave empty to use system certificates.</span>
             </div>
           {/if}
+        </div>
+      {/if}
+    </div>
+
+    <!-- MQTT Topics (collapsible) -->
+    <div class="setting-group card">
+      <button
+        class="section-toggle"
+        onclick={() => (showTopics = !showTopics)}
+      >
+        <h3>MQTT Topics</h3>
+        <span class="toggle-icon">{showTopics ? "\u25B4" : "\u25BE"}</span>
+      </button>
+      {#if showTopics}
+        <div class="collapsible-content">
+          <div class="field">
+            <label for="topic_pending">Task Pending (subscribe)</label>
+            <input
+              id="topic_pending"
+              type="text"
+              bind:value={config.topic_pending}
+              placeholder="tasks/drg/pending"
+            />
+          </div>
+          <div class="field">
+            <label for="topic_results">Task Results (publish prefix)</label>
+            <input
+              id="topic_results"
+              type="text"
+              bind:value={config.topic_results}
+              placeholder="tasks/drg/results"
+            />
+            <span class="hint">Results published to: {config.topic_results}/{"{request_id}"}</span>
+          </div>
+          <div class="field">
+            <label for="topic_health">Worker Health (publish prefix)</label>
+            <input
+              id="topic_health"
+              type="text"
+              bind:value={config.topic_health}
+              placeholder="workers/health"
+            />
+            <span class="hint">Health published to: {config.topic_health}/{"{worker_id}"}</span>
+          </div>
+          <div class="field">
+            <label for="topic_register">Worker Register (publish prefix)</label>
+            <input
+              id="topic_register"
+              type="text"
+              bind:value={config.topic_register}
+              placeholder="workers/register"
+            />
+            <span class="hint">Registration published to: {config.topic_register}/{"{worker_id}"}</span>
+          </div>
+          <span class="hint">Reconnect after changing topics for changes to take effect</span>
         </div>
       {/if}
     </div>
